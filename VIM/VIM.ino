@@ -1,4 +1,5 @@
 #include <EEPROMex.h>
+#include <math.h>
 
 const int param_count = 5;
 char* param[param_count] = {"CELLS", "GAP", "PLOT", "DIAMETR", "MICROSTEP"};  // диаметр колеса, промежуток, делянка, количество ячеек в касете
@@ -12,14 +13,19 @@ const uint8_t  pinEncoder  = 21;
 
 const int BUFF  = 128;
 
-int  ENCODER_STEP  = 5;  // шаг одного импульса энкодера, см
+float  ENCODER_STEP  =  0;  // шаг одного импульса энкодера, см
+float  MOTOR_STEP  = (M_PI * 122) / 200;
+int step_count = 0;
 int cells_count = 0;  // счетчик оставшихся ячеек
 long long L = 0;  // суммарное пройденное расстояние, см
-long distance = 0;  // расстояние от предыдущего высева, см
+float distance = 0;  // расстояние от предыдущего высева, см
+float distanceL = 0;
+float distanceR = 0;
 bool fl_run = false;
 
 void setup() {
-  attachInterrupt(2, interruptHall, RISING);  // pin 21 по фронту
+  attachInterrupt(2, interruptEncoderL, RISING);  // pin 21 по фронту
+  attachInterrupt(3, interruptEncoderR, RISING);  // pin 20 по фронту
   Serial2.begin(9600);  // display
   Serial3.begin(9600, SERIAL_8E1);  // RS-485
   Serial.begin(9600);  // debug
@@ -29,15 +35,29 @@ void setup() {
   for (int i = 0; i < param_count; ++i) {
     value[i] = EEPROM.readInt(addr[i]);
   }
+  ENCODER_STEP  =  (M_PI * value[3]) / 100;
   Serial.println("Init");
+  Serial3.print(":01EN\r\n"); 
 }
 
 void loop() {
-  if (distance >= value[1] && fl_run) {
-    digitalWrite(pinDispenser, HIGH);
-    delay(2000);
-    digitalWrite(pinDispenser, LOW);
-    distance = 0;
+  if (fl_run) {
+    if (distance >= value[1] + value[2]) {
+      digitalWrite(pinDispenser, HIGH);
+      delay(2000);
+      digitalWrite(pinDispenser, LOW);
+      L += distance;
+      distanceL -= distance;
+      distanceR -= distance;
+      distance = 0;
+      cells_count--;
+      if (cells_count <= 0) {
+        Serial2.print((String)"page 3" + char(255) + char(255) + char(255));
+        fl_run = false;
+      }
+      step_count = 0;
+      Serial2.print((String)"n0.val=" + cells_count + char(255) + char(255) + char(255));
+    }
   }
 }
 
@@ -75,8 +95,6 @@ void serialEvent2() {  // display
     }
   } else if (strstr(message, "OFF")) {
     fl_run = false;
-  } else if (strstr(message, "request")) {
-    // ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ??
   } else {
     Serial.println("Invalid command");
   }
@@ -86,7 +104,6 @@ void serialEvent3() {  // rs485
   char message[BUFF];
   receive(Serial3, message);
   Serial.println(message);
-  Serial.write(message);
   if (strstr(message, "E16")) {
     Serial.println("Stepper Motor Error");
   }
@@ -99,6 +116,13 @@ bool setConfig(char * message) {
       EEPROM.updateInt(addr[i], value[i]);
       Serial.print("write "); Serial.print(param[i]); Serial.println(value[i]);
       return true;
+      if (param[i] == "CELLS") {
+        cells_count = value[i];
+        delay(100);
+        Serial2.print((String)"n0.val=" + cells_count + char(255) + char(255) + char(255));
+      } else if (param[i] == "DIAMETR") {
+        ENCODER_STEP = (M_PI * value[i]) / 100;
+      }
     }
   }
   return false;
@@ -106,7 +130,7 @@ bool setConfig(char * message) {
 
 void DriverManual(char * message) {
   if (strstr(message, "STOP")) {
-    Serial3.print(":01MV1\r\n"); Serial.println("stop");
+    Serial3.print(":01SP\r\n"); Serial.println("stop");
     return;
   }
   int sp = 0;
@@ -121,12 +145,28 @@ void DriverManual(char * message) {
   Serial.println(sp);
   Serial3.print(":01SD"); Serial3.print(sp); Serial3.print("\r\n");
   delay(200);
-  Serial3.print(":01MV\r\n");
+  Serial3.print(":01MV1000\r\n");
 }
 
-void interruptHall() {
+void interruptEncoderR() {
   if (fl_run) {
-    L += ENCODER_STEP;
-    distance += ENCODER_STEP;
+    increment(distanceR);
   }
+}
+void interruptEncoderL() {
+  if (fl_run) {
+    increment(distanceL);
+  }
+}
+
+void increment(float &dist) {
+  dist += ENCODER_STEP;
+  distance = min(distanceL, distanceR);
+  Serial.println(distance);
+  while (distance > step_count * MOTOR_STEP) {
+    Serial3.print(":01MV1\r\n");
+    step_count++;
+  }
+  int p = L + distance;
+  Serial2.print((String)"n1.val=" + p + char(255) + char(255) + char(255));
 }
