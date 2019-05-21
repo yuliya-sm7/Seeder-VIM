@@ -1,13 +1,16 @@
 #include <EEPROMex.h>
-#include <math.h>
 
 const int param_count = 5;
-char* param[param_count] = {"CELLS", "GAP", "PLOT", "DIAMETR", "MICROSTEP"};  // диаметр колеса, промежуток, делянка, количество ячеек в касете
+char* param[param_count] = {"CELLS", "GAP", "PLOT", "DIAMETR", "MICROSTEP"};  // количество ячеек в касете, промежуток, делянка, диаметр колеса, микрошаг
 int value[param_count];
 const int addr[param_count] = {0, 2, 4, 6, 8};
 
 const uint8_t  pinDebug  = 13;
-const uint8_t  pinTable  = 0;
+const uint8_t  pinInA  = 0;
+const uint8_t  pinInB  = 0;
+const uint8_t  pinPWM  = 0;
+const uint8_t  pinEN  = 0;
+const uint8_t  pinSignal  = 13;
 const uint8_t  pinDispenser  = 0;
 const uint8_t  pinEncoder  = 21;
 
@@ -36,30 +39,38 @@ void setup() {
     value[i] = EEPROM.readInt(addr[i]);
   }
   ENCODER_STEP  =  (M_PI * value[3]) / 100;
+  Serial3.print(":01EN\r\n");
   Serial.println("Init");
-  Serial3.print(":01EN\r\n"); 
 }
 
 void loop() {
   if (fl_run) {
     if (distance >= value[1] + value[2]) {
-      digitalWrite(pinDispenser, HIGH);
-      delay(2000);
-      digitalWrite(pinDispenser, LOW);
-      L += distance;
-      distanceL -= distance;
-      distanceR -= distance;
-      distance = 0;
-      cells_count--;
+      seeding();
       if (cells_count <= 0) {
         Serial2.print((String)"page 3" + char(255) + char(255) + char(255));
+        Serial2.print((String)"n0.val=" + value[0] + char(255) + char(255) + char(255));
         fl_run = false;
       }
-      step_count = 0;
-      Serial2.print((String)"n0.val=" + cells_count + char(255) + char(255) + char(255));
     }
   }
 }
+
+void seeding() {
+  digitalWrite(pinDispenser, HIGH);
+  Serial2.print((String)"click bt1,1" + char(255) + char(255) + char(255));
+  delay(2000);
+  Serial2.print((String)"click bt1,0" + char(255) + char(255) + char(255));
+  digitalWrite(pinDispenser, LOW);
+  L += distance;
+  distanceL -= distance;
+  distanceR -= distance;
+  distance = 0;
+  cells_count--;
+  Serial2.print((String)"n0.val=" + cells_count + char(255) + char(255) + char(255));
+  step_count = 0;
+}
+
 
 int receive(HardwareSerial &port, char *message) {
   int n = 0;
@@ -69,7 +80,6 @@ int receive(HardwareSerial &port, char *message) {
     n++;
   } while (port.available() && n < (BUFF - 1) && message[n - 1] != '\0');
   message[n] = '\0';
-  //Serial.println(message);
   return n;
 }
 
@@ -80,23 +90,29 @@ int readNum(char* message, int p) {
   value[2] = message[p + 2];
   value[3] = message[p + 3];
   uint32_t result = *(uint32_t*) value;
-  //Serial.println((int)result);
   return (int)result;
 }
 
 void serialEvent2() {  // display
   char message[BUFF];
-  receive(Serial2, message);
+  if (receive(Serial2, message) < 3) {
+    return;
+  }
+  Serial.println(message);
   if (!fl_run) {
-    if (strstr(message, "ON")) {
+    if (strstr(message, "ONN")) {
       fl_run = true;
+    } else if (strstr(message, "GET")) {
+      getConfig(message);
     } else if (!setConfig(message)) {
       DriverManual(message);
     }
-  } else if (strstr(message, "OFF")) {
-    fl_run = false;
   } else {
-    Serial.println("Invalid command");
+    if (strstr(message, "OFF")) {
+      fl_run = false;
+    } else {
+      Serial.println("Invalid command");
+    }
   }
 }
 
@@ -128,22 +144,43 @@ bool setConfig(char * message) {
   return false;
 }
 
+bool getConfig(char * message) {
+  for (int i = 0; i < param_count; ++i) {
+    if (strstr(message, param[i])) {
+      char place[BUFF];
+      strcpy(place, strstr(message, param[i]) + strlen(param[i]));
+      String s = (String)place + "=" + value[i] + char(255) + char(255) + char(255);
+      Serial2.print(s);
+      Serial.println(s);
+      return true;
+    }
+  }
+  if (strstr(message, "loop")) {
+    Serial2.print((String)"n0.val=" + cells_count + char(255) + char(255) + char(255));
+    int p = L + distance;
+    Serial2.print((String)"n1.val=" + p + char(255) + char(255) + char(255));
+    return true;
+  }
+  return false;
+}
+
+
 void DriverManual(char * message) {
   if (strstr(message, "STOP")) {
-    Serial3.print(":01SP\r\n"); Serial.println("stop");
+    Serial3.print(":01SP\r\n");
     return;
   }
   int sp = 0;
   if (strstr(message, "RIGHT")) {
     sp = readNum(strstr(message, "RIGHT"), strlen("RIGHT"));
-    Serial3.print(":01DR\r\n"); Serial.println("moveR");
+    Serial3.print(":01DR\r\n"); Serial.print("moveR");
   } else if (strstr(message, "LEFT")) {
     sp = readNum(strstr(message, "LEFT"), strlen("LEFT"));
-    Serial3.print(":01DL\r\n"); Serial.println("moveL");
+    Serial3.print(":01DL\r\n"); Serial.print("moveL");
   } else return;
   delay(200);
   Serial.println(sp);
-  Serial3.print(":01SD"); Serial3.print(sp); Serial3.print("\r\n");
+  Serial3.print((String)":01SD" + sp + "\r\n");
   delay(200);
   Serial3.print(":01MV1000\r\n");
 }
