@@ -1,0 +1,10 @@
+Replace Part AD_H1 AD_H in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with AD_H from Header.SchLib
+Replace Part AD_L1 AD_L in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with AD_L from Header.SchLib
+Replace Part COMMS1 Communication in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with Communication from Header.SchLib
+Replace Part DIGITAL1 IO_36 in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with IO_36 from Header.SchLib
+Replace Part ICSP1 ICSP in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with ICSP from Header.SchLib
+Replace Part POWER1 POWER in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with POWER from Header.SchLib
+Replace Part PWM_H1 PWM_H in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with PWM_H from Header.SchLib
+Replace Part PWM_L1 PWM_L in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with PWM_L from Header.SchLib
+Replace Part SMSD-4.2 RS-485 SMSD-4.2 RS-485 in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with SMSD-4.2 RS-485 from Header.SchLib
+Replace Part UART-RS485 UART-RS485 in C:\Users\yuliy\Documents\MEGAsync\Seeder-VIM\PCB_Project\Sheet1.SchDoc with UART-RS485 from Header.SchLib

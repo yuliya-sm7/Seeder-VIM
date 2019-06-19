@@ -1,0 +1,16 @@
+Component Name : UART-RS485
+
+Part Count : 2
+
+Part : UART-RS485
+     Pins - (Normal) : 0
+          Hidden Pins : 
+
+Part : UART-RS485
+     Pins - (Normal) : 4
+          VCC            1              I/O
+          RX             2              I/O
+          TX             3              I/O
+          GND            4              I/O
+          Hidden Pins : 
+
